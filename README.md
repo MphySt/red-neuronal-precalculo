@@ -26,6 +26,12 @@ Y = tanh(W⁴·tanh(W³·tanh(W²·X + b²) + b³) + b⁴)
 | 3 (oculta) | N4, N5 | a²₁, a²₂, a²₃ |
 | 4 (salida) | N6 | a³₁, a³₂ |
 
+## Demo interactiva
+
+**https://mphyst.github.io/red-neuronal-precalculo/**
+
+Página web ([index.html](index.html)) donde se pueden mover las entradas X₁, X₂, X₃ con controles deslizantes, hacer clic en cada neurona para ver su cálculo paso a paso (g(x) y luego f(z) = tanh(z)), ver la gráfica de tanh con cada neurona y animar la propagación capa por capa. No requiere instalación: también se puede abrir `index.html` directamente en el navegador.
+
 ## Cómo ejecutar
 
 ```bash

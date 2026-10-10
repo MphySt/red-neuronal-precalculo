@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Red Neuronal 3-3-2-1</title>
+<meta name="description" content="Red neuronal 3-3-2-1 interactiva como composición de funciones f(g(x)). Proyecto de Precálculo, UMG.">
+<style>
+  :root {
+    --bg: #f5f6fa;
+    --surface: #ffffff;
+    --surface-2: #eef1f7;
+    --text: #141a2c;
+    --muted: #5a6377;
+    --border: #d8dde9;
+    --pos: #2563eb;
+    --neg: #dc2626;
+    --accent: #7c3aed;
+    --accent-soft: rgba(124, 58, 237, .10);
+    --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 6px 20px rgba(16, 24, 40, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0c1018;
+      --surface: #151b27;
+      --surface-2: #1d2432;
+      --text: #e7eaf3;
+      --muted: #98a1b4;
+      --border: #2a3244;
+      --pos: #60a5fa;
+      --neg: #f87171;
+      --accent: #a78bfa;
+      --accent-soft: rgba(167, 139, 250, .14);
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c1018;
+    --surface: #151b27;
+    --surface-2: #1d2432;
+    --text: #e7eaf3;
+    --muted: #98a1b4;
+    --border: #2a3244;
+    --pos: #60a5fa;
+    --neg: #f87171;
+    --accent: #a78bfa;
+    --accent-soft: rgba(167, 139, 250, .14);
+    --shadow: none;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 16px 48px; }
+
+  header { margin-bottom: 20px; }
+  .eyebrow { color: var(--accent); font-weight: 600; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+  h1 { font-size: clamp(26px, 4vw, 36px); line-height: 1.15; margin: 6px 0 8px; }
+  .lead { color: var(--muted); max-width: 70ch; margin: 0 0 14px; }
+  .formula {
+    display: inline-block; max-width: 100%; overflow-x: auto;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px;
+    white-space: nowrap;
+  }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px; box-shadow: var(--shadow); min-width: 0;
+  }
+  .card h2 { font-size: 16px; margin: 0 0 4px; }
+  .card .sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .stack { display: grid; gap: 16px; }
+  .grid-2 { display: grid; gap: 16px; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); }
+  .grid-2.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  @media (max-width: 900px) { .grid-2, .grid-2.even { grid-template-columns: 1fr; } }
+
+  /* Controles */
+  .controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 18px; align-items: end; }
+  @media (max-width: 760px) { .controls { grid-template-columns: 1fr; } }
+  .slider label { display: flex; justify-content: space-between; align-items: center; font-weight: 600; margin-bottom: 6px; }
+  .slider input[type="number"] {
+    width: 82px; font: inherit; font-size: 14px; text-align: right; color: var(--text);
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 3px 8px;
+  }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: 600; font-size: 14px; cursor: pointer;
+    border-radius: 10px; padding: 9px 14px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text);
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .55; cursor: default; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Cadena de composición */
+  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .chip {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 13px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 6px 9px;
+    transition: opacity .25s;
+  }
+  .chip b { font-family: system-ui, sans-serif; }
+  .chip.final { background: var(--accent-soft); border-color: var(--accent); }
+  .arrow { color: var(--muted); font-size: 12px; display: flex; flex-direction: column; align-items: center; line-height: 1.1; transition: opacity .25s; }
+  .arrow span { font-family: ui-monospace, Menlo, monospace; color: var(--accent); font-weight: 600; }
+  .dim { opacity: .3; }
+
+  /* Diagrama */
+  .svg-scroll { overflow-x: auto; }
+  #net { display: block; width: 100%; min-width: 520px; height: auto; user-select: none; }
+  #net .node { cursor: pointer; }
+  #net .node:focus { outline: none; }
+  #net .node:focus-visible .ring { stroke: var(--accent); stroke-width: 3; }
+  #net text { font-family: system-ui, sans-serif; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 12.5px; margin-top: 10px; }
+  .legend i { display: inline-block; width: 18px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+  .legend .dot { width: 12px; height: 12px; border-radius: 50%; }
+
+  /* Detalle */
+  .tag { font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 9px; margin-left: 6px; vertical-align: middle; }
+  .step { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; margin: 14px 0; }
+  .step-k { font-size: 12.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 6px; }
+  .math { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 13.5px; overflow-wrap: anywhere; margin: 3px 0; }
+  .math.result { font-weight: 700; font-size: 15px; color: var(--accent); }
+  .note { color: var(--muted); font-size: 13.5px; }
+
+  /* Tabla */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--border); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: .03em; }
+  td { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  td:first-child { font-family: inherit; font-weight: 600; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--surface-2); }
+  tbody tr.sel { background: var(--accent-soft); }
+
+  #tanh { display: block; width: 100%; height: auto; }
+  #tanh text { font-family: system-ui, sans-serif; }
+
+  footer { color: var(--muted); font-size: 13px; margin-top: 28px; text-align: center; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Proyecto de Precálculo · UMG · 2026</div>
+    <h1>Una red neuronal es una composición de funciones</h1>
+    <p class="lead">Cada neurona aplica primero una transformación afín <b>g(x)</b> = Σ w·x + b y luego la activación <b>f(z)</b> = tanh(z). La salida de cada capa es la entrada de la siguiente. Mueve las entradas, haz clic en cualquier neurona y observa el cálculo paso a paso.</p>
+    <div class="formula">Y = tanh(W⁴·tanh(W³·tanh(W²·X + b²) + b³) + b⁴)</div>
+  </header>
+
+  <div class="stack">
+    <section class="card">
+      <h2>Entradas</h2>
+      <p class="sub">Valores del proyecto: X₁ = 0.5, X₂ = −0.8, X₃ = 1.2</p>
+      <div class="controls">
+        <div class="slider">
+          <label for="x0">X₁ <input type="number" id="n0" step="0.01" min="-2" max="2" aria-label="Valor de X₁"></label>
+          <input type="range" id="x0" min="-2" max="2" step="0.01">
+        </div>
+        <div class="slider">
+          <label for="x1">X₂ <input type="number" id="n1" step="0.01" min="-2" max="2" aria-label="Valor de X₂"></label>
+          <input type="range" id="x1" min="-2" max="2" step="0.01">
+        </div>
+        <div class="slider">
+          <label for="x2">X₃ <input type="number" id="n2" step="0.01" min="-2" max="2" aria-label="Valor de X₃"></label>
+          <input type="range" id="x2" min="-2" max="2" step="0.01">
+        </div>
+        <div class="buttons">
+          <button class="primary" id="btn-anim">▶ Animar propagación</button>
+          <button id="btn-reset">Restablecer</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>La composición, capa por capa</h2>
+      <p class="sub">g calcula las sumas ponderadas z; f = tanh las convierte en activaciones a. Y = f(g(f(g(f(g(X))))))</p>
+      <div class="chain" id="chain"></div>
+    </section>
+
+    <div class="grid-2">
+      <section class="card">
+        <h2>Arquitectura 3-3-2-1</h2>
+        <p class="sub">Haz clic en una neurona para ver su cálculo.</p>
+        <div class="svg-scroll"><svg id="net" viewBox="0 0 640 430" role="img" aria-label="Diagrama de la red neuronal"></svg></div>
+        <div class="legend">
+          <span><i style="background:var(--pos)"></i>peso positivo</span>
+          <span><i style="background:var(--neg)"></i>peso negativo</span>
+          <span>grosor = |w|</span>
+          <span><i class="dot" style="background:var(--pos);opacity:.55"></i>relleno = activación (−1 a 1)</span>
+        </div>
+      </section>
+
+      <section class="card" id="detail" aria-live="polite"></section>
+    </div>
+
+    <div class="grid-2 even">
+      <section class="card">
+        <h2>La activación f(z) = tanh(z)</h2>
+        <p class="sub">Cada punto es una neurona: su z en el eje horizontal y su a = tanh(z) en el vertical. Nunca sale de (−1, 1).</p>
+        <svg id="tanh" viewBox="0 0 440 270" role="img" aria-label="Gráfica de tanh con las neuronas"></svg>
+      </section>
+
+      <section class="card">
+        <h2>Resultados</h2>
+        <p class="sub">Calculados en vivo con las entradas actuales (6 decimales).</p>
+        <table>
+          <thead><tr><th>Neurona</th><th>z</th><th>a = tanh(z)</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    Moorphy Meda · Facultad de Ingeniería en Sistemas · Universidad Mariano Gálvez ·
+    <a href="https://github.com/MphySt/red-neuronal-precalculo">Código en GitHub</a>
+  </footer>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Datos de la red (mismos valores que red_neuronal.py)
+// ---------------------------------------------------------------------------
+const ENTRADAS_PROYECTO = [0.5, -0.8, 1.2];
+const CAPAS = [
+  { W: [[0.4, -0.2, 0.6], [-0.5, 0.3, 0.1], [0.2, 0.7, -0.4]], b: [0.1, -0.2, 0.05] }, // Capa 2: N1-N3
+  { W: [[0.7, -0.4, 0.3], [-0.3, 0.8, -0.5]], b: [0.05, -0.1] },                       // Capa 3: N4-N5
+  { W: [[0.6, -0.5]], b: [0.1] },                                                       // Capa 4: N6
+];
+const TAMANOS = [3, 3, 2, 1];
+const TITULOS = ["Capa 1 · Entrada", "Capa 2 · Oculta", "Capa 3 · Oculta", "Capa 4 · Salida"];
+const DEC = 6;
+
+const state = { x: ENTRADAS_PROYECTO.slice(), sel: { L: 1, j: 0 }, visible: 3, animating: false };
+
+// ---------------------------------------------------------------------------
+// Utilidades de notación
+// ---------------------------------------------------------------------------
+const SUP = { 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶" };
+const SUB = { 0: "₀", 1: "₁", 2: "₂", 3: "₃", 4: "₄", 5: "₅", 6: "₆" };
+const sup = n => String(n).split("").map(c => SUP[c]).join("");
+const sub = n => String(n).split("").map(c => SUB[c]).join("");
+
+function fmt(v, d = DEC) {
+  if (Math.abs(v) < 0.5 * Math.pow(10, -d)) v = 0;
+  return (v < 0 ? "−" : "") + Math.abs(v).toFixed(d);
+}
+const fmtW = w => (w < 0 ? "−" : "") + Math.abs(w);
+
+const nombre = (L, j) => L === 0 ? "X" + sub(j + 1) : "N" + ([0, 0, 3, 5][L] + j + 1);
+const varA = (L, j) => L === 0 ? "X" + sub(j + 1) : "a" + sup(L + 1) + sub(j + 1);
+const varZ = (L, j) => "z" + sup(L + 1) + sub(j + 1);
+
+// ---------------------------------------------------------------------------
+// Propagación hacia adelante: g(x) = Σ w·x + b, f(z) = tanh(z)
+// ---------------------------------------------------------------------------
+function forward(x) {
+  const res = [{ a: x.slice(), z: null }];
+  let entrada = x;
+  for (const capa of CAPAS) {
+    const z = capa.W.map((fila, j) => fila.reduce((s, w, k) => s + w * entrada[k], 0) + capa.b[j]);
+    const a = z.map(Math.tanh);
+    res.push({ z, a });
+    entrada = a;
+  }
+  return res;
+}
+
+// ---------------------------------------------------------------------------
+// Diagrama de la red (SVG)
+// ---------------------------------------------------------------------------
+const NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("net");
+const COLS = [70, 245, 420, 580];
+const R = 27;
+const pos = (L, j) => ({ x: COLS[L], y: 225 + (j - (TAMANOS[L] - 1) / 2) * 118 });
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+const gEdges = el("g", {}, svg);
+const gLabels = el("g", {}, svg);
+const gParticles = el("g", {}, svg);
+const gNodes = el("g", {}, svg);
+const edges = [];
+const nodes = [];
+
+TITULOS.forEach((t, L) => {
+  el("text", { x: COLS[L], y: 26, "text-anchor": "middle", "font-size": 13, "font-weight": 600, fill: "var(--muted)" }, svg).textContent = t;
+});
+
+for (let L = 1; L < TAMANOS.length; L++) {
+  for (let j = 0; j < TAMANOS[L]; j++) {
+    for (let k = 0; k < TAMANOS[L - 1]; k++) {
+      const w = CAPAS[L - 1].W[j][k];
+      const p1 = pos(L - 1, k), p2 = pos(L, j);
+      const line = el("line", {
+        x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y,
+        stroke: w >= 0 ? "var(--pos)" : "var(--neg)",
+        "stroke-width": (1 + Math.abs(w) * 5).toFixed(2), "stroke-linecap": "round",
+      }, gEdges);
+      line.style.transition = "opacity .25s";
+      const t = 0.5;
+      const label = el("text", {
+        x: p1.x + (p2.x - p1.x) * t, y: p1.y + (p2.y - p1.y) * t + 4,
+        "text-anchor": "middle", "font-size": 13, "font-weight": 700,
+        fill: w >= 0 ? "var(--pos)" : "var(--neg)",
+        stroke: "var(--surface)", "stroke-width": 5, "paint-order": "stroke",
+      }, gLabels);
+      label.textContent = "w = " + fmtW(w);
+      edges.push({ L, j, k, line, label });
+    }
+  }
+}
+
+for (let L = 0; L < TAMANOS.length; L++) {
+  for (let j = 0; j < TAMANOS[L]; j++) {
+    const p = pos(L, j);
+    const g = el("g", { class: "node", tabindex: 0, role: "button", "aria-label": "Neurona " + nombre(L, j) }, gNodes);
+    g.style.transition = "opacity .25s";
+    el("circle", { cx: p.x, cy: p.y, r: R, fill: "var(--surface)" }, g);
+    const fill = el("circle", { cx: p.x, cy: p.y, r: R }, g);
+    fill.style.transition = "fill-opacity .25s";
+    const ring = el("circle", { class: "ring", cx: p.x, cy: p.y, r: R, fill: "none", stroke: "var(--border)", "stroke-width": 1.5 }, g);
+    const name = el("text", { x: p.x, y: p.y + 5, "text-anchor": "middle", "font-size": 15, "font-weight": 700, fill: "var(--text)" }, g);
+    name.textContent = nombre(L, j);
+    const val = el("text", { x: p.x, y: p.y + R + 19, "text-anchor": "middle", "font-size": 13.5, fill: "var(--text)" }, g);
+    const select = () => { state.sel = { L, j }; render(); };
+    g.addEventListener("click", select);
+    g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(); } });
+    nodes.push({ L, j, g, fill, ring, val });
+  }
+}
+
+function renderNet(res) {
+  const { sel, visible } = state;
+  for (const n of nodes) {
+    const shown = n.L <= visible;
+    const v = res[n.L].a[n.j];
+    const intensity = Math.min(1, Math.abs(n.L === 0 ? v / 2 : v));
+    n.fill.setAttribute("fill", v >= 0 ? "var(--pos)" : "var(--neg)");
+    n.fill.setAttribute("fill-opacity", shown ? (0.1 + 0.45 * intensity).toFixed(3) : 0);
+    n.g.style.opacity = shown ? 1 : 0.35;
+    const isSel = sel.L === n.L && sel.j === n.j;
+    n.ring.setAttribute("stroke", isSel ? "var(--accent)" : "var(--border)");
+    n.ring.setAttribute("stroke-width", isSel ? 3.5 : 1.5);
+    n.val.textContent = !shown ? "?" : (n.L === 3 ? "Y = " : "") + fmt(v, 4);
+    n.val.setAttribute("font-weight", n.L === 3 ? 700 : 400);
+  }
+  for (const e of edges) {
+    const incoming = sel.L === e.L && sel.j === e.j;
+    const shown = e.L <= visible;
+    const op = !shown ? 0.07 : sel.L === 0 ? (e.L === 1 && e.k === sel.j ? 0.95 : 0.25) : incoming ? 0.95 : 0.18;
+    e.line.style.opacity = op;
+    e.label.style.display = shown && (incoming || (sel.L === 0 && e.L === 1 && e.k === sel.j)) ? "" : "none";
+  }
+}
+
+// Partículas que viajan por las conexiones durante la animación
+function flow(L) {
+  return new Promise(resolve => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const dur = reduce ? 1 : 850;
+    const ps = edges.filter(e => e.L === L).map(e => {
+      const w = CAPAS[L - 1].W[e.j][e.k];
+      return { e, c: el("circle", { r: 5, fill: w >= 0 ? "var(--pos)" : "var(--neg)" }, gParticles) };
+    });
+    const t0 = performance.now();
+    function step(now) {
+      const t = Math.min(1, (now - t0) / dur);
+      const s = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      for (const { e, c } of ps) {
+        const p1 = pos(L - 1, e.k), p2 = pos(L, e.j);
+        c.setAttribute("cx", p1.x + (p2.x - p1.x) * s);
+        c.setAttribute("cy", p1.y + (p2.y - p1.y) * s);
+      }
+      if (t < 1) requestAnimationFrame(step);
+      else { ps.forEach(p => p.c.remove()); resolve(); }
+    }
+    requestAnimationFrame(step);
+  });
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+async function animate() {
+  if (state.animating) return;
+  state.animating = true;
+  btnAnim.disabled = true;
+  state.visible = 0;
+  render();
+  await wait(350);
+  for (let L = 1; L <= 3; L++) {
+    state.sel = { L, j: 0 };
+    render();
+    await flow(L);
+    state.visible = L;
+    render();
+    await wait(450);
+  }
+  state.sel = { L: 3, j: 0 };
+  render();
+  state.animating = false;
+  btnAnim.disabled = false;
+}
+
+// ---------------------------------------------------------------------------
+// Panel de detalle: el cálculo paso a paso de la neurona seleccionada
+// ---------------------------------------------------------------------------
+const detail = document.getElementById("detail");
+
+function renderDetail(res) {
+  const { L, j } = state.sel;
+  if (L === 0) {
+    const ws = CAPAS[0].W.map((fila, t) => `${nombre(1, t)} (w = ${fmtW(fila[j])})`).join(", ");
+    detail.innerHTML = `
+      <h2>Entrada ${nombre(0, j)} <span class="tag">Capa 1 · Entrada</span></h2>
+      <div class="step">
+        <div class="step-k">Valor dado</div>
+        <div class="math result">${nombre(0, j)} = ${fmt(res[0].a[j])}</div>
+      </div>
+      <p class="note">Las entradas no se calculan: son los datos que recibe la red. Ajústala con el control deslizante.</p>
+      <p class="note">Alimenta a ${ws}.</p>`;
+    return;
+  }
+  const W = CAPAS[L - 1].W[j], b = CAPAS[L - 1].b[j];
+  const prev = res[L - 1].a;
+  const z = res[L].z[j], a = res[L].a[j];
+  const zv = varZ(L, j), av = L === 3 ? "Y" : varA(L, j);
+  const general = W.map((_, k) => `w${sup(L + 1)}${sub(j + 1)}${sub(k + 1)}·${varA(L - 1, k)}`).join(" + ") + ` + b${sup(L + 1)}${sub(j + 1)}`;
+  const sust = W.map((w, k) => `(${fmtW(w)})(${fmt(prev[k])})`).join(" + ") + ` + (${fmtW(b)})`;
+  const terms = W.map((w, k) => w * prev[k]).concat([b]);
+  const prods = terms.map((t, i) => i === 0 ? fmt(t) : (t < 0 ? " − " : " + ") + fmt(Math.abs(t))).join("");
+  const tipo = L === 3 ? "Capa 4 · Salida" : `Capa ${L + 1} · Oculta`;
+  const extra = L === 3
+    ? `<p class="note"><b>Y = ${fmt(a)}</b> es la salida final: el resultado de componer las tres capas.</p>`
+    : `<p class="note">Este valor ${av} pasa como entrada a la capa ${L + 2}.</p>`;
+  detail.innerHTML = `
+    <h2>Neurona ${nombre(L, j)} <span class="tag">${tipo}</span></h2>
+    <div class="step">
+      <div class="step-k">Paso 1 · g(x): transformación afín</div>
+      <div class="math">${zv} = ${general}</div>
+      <div class="math">= ${sust}</div>
+      <div class="math">= ${prods}</div>
+      <div class="math result">${zv} = ${fmt(z)}</div>
+    </div>
+    <div class="step">
+      <div class="step-k">Paso 2 · f(z): activación tanh</div>
+      <div class="math">${av} = tanh(${zv}) = tanh(${fmt(z)})</div>
+      <div class="math result">${av} = ${fmt(a)}</div>
+    </div>
+    ${extra}`;
+}
+
+// ---------------------------------------------------------------------------
+// Cadena de composición
+// ---------------------------------------------------------------------------
+const chain = document.getElementById("chain");
+function renderChain(res) {
+  const vec = v => "(" + v.map(n => fmt(n, 4)).join(", ") + ")";
+  const parts = [`<span class="chip"><b>X</b> = ${vec(res[0].a)}</span>`];
+  for (let L = 1; L <= 3; L++) {
+    const d = L > state.visible ? " dim" : "";
+    parts.push(`<span class="arrow${d}"><span>g${sup(L + 1)}</span>→</span>`);
+    parts.push(`<span class="chip${d}"><b>z${sup(L + 1)}</b> = ${vec(res[L].z)}</span>`);
+    parts.push(`<span class="arrow${d}"><span>f</span>→</span>`);
+    parts.push(L === 3
+      ? `<span class="chip final${d}"><b>Y</b> = ${fmt(res[3].a[0], 4)}</span>`
+      : `<span class="chip${d}"><b>a${sup(L + 1)}</b> = ${vec(res[L].a)}</span>`);
+  }
+  chain.innerHTML = parts.join("");
+}
+
+// ---------------------------------------------------------------------------
+// Gráfica de tanh
+// ---------------------------------------------------------------------------
+const tanhSvg = document.getElementById("tanh");
+const P = { l: 40, r: 14, t: 14, b: 32, w: 440, h: 270 };
+const ZMAX = 3;
+const sx = z => P.l + (Math.max(-ZMAX, Math.min(ZMAX, z)) + ZMAX) / (2 * ZMAX) * (P.w - P.l - P.r);
+const sy = a => P.t + (1.1 - a) / 2.2 * (P.h - P.t - P.b);
+
+(function drawTanhBase() {
+  const g = el("g", {}, tanhSvg);
+  for (let z = -ZMAX; z <= ZMAX; z++) {
+    el("line", { x1: sx(z), y1: sy(1.1), x2: sx(z), y2: sy(-1.1), stroke: "var(--border)", "stroke-width": z === 0 ? 1.5 : 1 }, g);
+    el("text", { x: sx(z), y: P.h - 12, "text-anchor": "middle", "font-size": 12, fill: "var(--muted)" }, g).textContent = fmt(z, 0);
+  }
+  for (const a of [-1, -0.5, 0, 0.5, 1]) {
+    el("line", { x1: sx(-ZMAX), y1: sy(a), x2: sx(ZMAX), y2: sy(a), stroke: "var(--border)", "stroke-width": a === 0 ? 1.5 : 1, "stroke-dasharray": Math.abs(a) === 1 ? "4 4" : "" }, g);
+    el("text", { x: P.l - 8, y: sy(a) + 4, "text-anchor": "end", "font-size": 12, fill: "var(--muted)" }, g).textContent = fmt(a, a % 1 ? 1 : 0);
+  }
+  el("text", { x: sx(ZMAX), y: sy(0) - 6, "text-anchor": "end", "font-size": 12, "font-style": "italic", fill: "var(--muted)" }, g).textContent = "z";
+  el("text", { x: sx(0) + 6, y: sy(1.1) + 10, "font-size": 12, "font-style": "italic", fill: "var(--muted)" }, g).textContent = "a";
+  let d = "";
+  for (let i = 0; i <= 160; i++) {
+    const z = -ZMAX + (2 * ZMAX * i) / 160;
+    d += (i ? "L" : "M") + sx(z).toFixed(2) + " " + sy(Math.tanh(z)).toFixed(2);
+  }
+  el("path", { d, fill: "none", stroke: "var(--accent)", "stroke-width": 2.5 }, g);
+})();
+const gTanhPts = el("g", {}, tanhSvg);
+
+function renderTanh(res) {
+  gTanhPts.innerHTML = "";
+  const { L: sL, j: sj } = state.sel;
+  const pts = [];
+  for (let L = 1; L <= 3; L++) for (let j = 0; j < TAMANOS[L]; j++) {
+    pts.push({ L, j, z: res[L].z[j], a: res[L].a[j], sel: L === sL && j === sj });
+  }
+  const s = pts.find(p => p.sel);
+  if (s) {
+    const x = sx(s.z), y = sy(s.a);
+    el("line", { x1: x, y1: sy(0), x2: x, y2: y, stroke: "var(--text)", "stroke-dasharray": "3 3", opacity: 0.6 }, gTanhPts);
+    el("line", { x1: sx(0), y1: y, x2: x, y2: y, stroke: "var(--text)", "stroke-dasharray": "3 3", opacity: 0.6 }, gTanhPts);
+  }
+  const placed = [];
+  pts.sort((p, q) => p.sel - q.sel);
+  for (const p of pts) {
+    const x = sx(p.z), y = sy(p.a);
+    el("circle", { cx: x, cy: y, r: p.sel ? 7 : 5, fill: p.a >= 0 ? "var(--pos)" : "var(--neg)", stroke: "var(--surface)", "stroke-width": 2 }, gTanhPts);
+  }
+  // Etiquetas sin encimarse (la seleccionada primero)
+  for (const p of pts.slice().reverse()) {
+    const x = sx(p.z), y = sy(p.a);
+    const txt = nombre(p.L, p.j);
+    for (const dy of [-12, 22, -26, 36, -40, 50]) {
+      const box = { x: x - 13, y: y + dy - 11, w: 26, h: 14 };
+      if (!placed.some(b => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)) {
+        placed.push(box);
+        el("text", {
+          x, y: y + dy, "text-anchor": "middle", "font-size": p.sel ? 13 : 11.5, "font-weight": p.sel ? 700 : 600,
+          fill: p.sel ? "var(--text)" : "var(--muted)", stroke: "var(--surface)", "stroke-width": 4, "paint-order": "stroke",
+        }, gTanhPts).textContent = txt;
+        break;
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tabla
+// ---------------------------------------------------------------------------
+const tbody = document.getElementById("tbody");
+function renderTable(res) {
+  const rows = [];
+  for (let L = 1; L <= 3; L++) for (let j = 0; j < TAMANOS[L]; j++) {
+    const isSel = state.sel.L === L && state.sel.j === j;
+    const etiqueta = L === 2 ? ` (ŷ${sub(j + 1)})` : L === 3 ? " (Y)" : "";
+    rows.push(`<tr data-l="${L}" data-j="${j}" class="${isSel ? "sel" : ""}"><td>${nombre(L, j)}${etiqueta}</td><td>${fmt(res[L].z[j])}</td><td>${L === 3 ? "<b>" + fmt(res[L].a[j]) + "</b>" : fmt(res[L].a[j])}</td></tr>`);
+  }
+  tbody.innerHTML = rows.join("");
+}
+tbody.addEventListener("click", e => {
+  const tr = e.target.closest("tr");
+  if (!tr) return;
+  state.sel = { L: +tr.dataset.l, j: +tr.dataset.j };
+  render();
+});
+
+// ---------------------------------------------------------------------------
+// Controles
+// ---------------------------------------------------------------------------
+const ranges = [0, 1, 2].map(i => document.getElementById("x" + i));
+const numbers = [0, 1, 2].map(i => document.getElementById("n" + i));
+const btnAnim = document.getElementById("btn-anim");
+
+function syncInputs() {
+  state.x.forEach((v, i) => { ranges[i].value = v; numbers[i].value = v; });
+}
+ranges.forEach((r, i) => r.addEventListener("input", () => {
+  state.x[i] = parseFloat(r.value);
+  numbers[i].value = r.value;
+  render();
+}));
+numbers.forEach((n, i) => n.addEventListener("input", () => {
+  const v = parseFloat(n.value);
+  if (!isFinite(v)) return;
+  state.x[i] = Math.max(-2, Math.min(2, v));
+  ranges[i].value = state.x[i];
+  render();
+}));
+btnAnim.addEventListener("click", animate);
+document.getElementById("btn-reset").addEventListener("click", () => {
+  state.x = ENTRADAS_PROYECTO.slice();
+  syncInputs();
+  render();
+});
+
+function render() {
+  const res = forward(state.x);
+  renderNet(res);
+  renderDetail(res);
+  renderChain(res);
+  renderTanh(res);
+  renderTable(res);
+}
+
+syncInputs();
+render();
+</script>
+</body>
+</html>
