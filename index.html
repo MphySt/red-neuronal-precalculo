@@ -89,6 +89,11 @@
     background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 3px 8px;
   }
   input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .bias-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px 18px; }
+  .bias-layer { grid-column: 1 / -1; font-size: 12.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-bottom: -6px; }
+  .bias-orig { display: block; font-size: 12px; font-weight: 400; color: var(--muted); min-height: 18px; }
+  .slider.changed input[type="number"] { border-color: var(--accent); background: var(--accent-soft); }
+  .slider.changed .bias-orig { color: var(--accent); }
   .buttons { display: flex; gap: 8px; flex-wrap: wrap; }
   button {
     font: inherit; font-weight: 600; font-size: 14px; cursor: pointer;
@@ -183,6 +188,12 @@
     </section>
 
     <section class="card">
+      <h2>Sesgos (b)</h2>
+      <p class="sub">Cambia el sesgo de cualquier neurona y observa cómo se propaga el cambio hasta ŷ₁, ŷ₂ e Y. “Restablecer” devuelve todo a los valores del proyecto.</p>
+      <div class="bias-grid" id="bias-grid"></div>
+    </section>
+
+    <section class="card">
       <h2>La composición, capa por capa</h2>
       <p class="sub">g calcula las sumas ponderadas z; f = tanh las convierte en activaciones a. Y = f(g(f(g(f(g(X))))))</p>
       <div class="chain" id="chain"></div>
@@ -242,7 +253,7 @@ const TAMANOS = [3, 3, 2, 1];
 const TITULOS = ["Capa 1 · Entrada", "Capa 2 · Oculta", "Capa 3 · Oculta", "Capa 4 · Salida"];
 const DEC = 6;
 
-const state = { x: ENTRADAS_PROYECTO.slice(), sel: { L: 1, j: 0 }, visible: 3, animating: false };
+const state = { x: ENTRADAS_PROYECTO.slice(), b: CAPAS.map(c => c.b.slice()), sel: { L: 1, j: 0 }, visible: 3, animating: false };
 
 // ---------------------------------------------------------------------------
 // Utilidades de notación
@@ -268,12 +279,12 @@ const varZ = (L, j) => "z" + sup(L + 1) + sub(j + 1);
 function forward(x) {
   const res = [{ a: x.slice(), z: null }];
   let entrada = x;
-  for (const capa of CAPAS) {
-    const z = capa.W.map((fila, j) => fila.reduce((s, w, k) => s + w * entrada[k], 0) + capa.b[j]);
+  CAPAS.forEach((capa, i) => {
+    const z = capa.W.map((fila, j) => fila.reduce((s, w, k) => s + w * entrada[k], 0) + state.b[i][j]);
     const a = z.map(Math.tanh);
     res.push({ z, a });
     entrada = a;
-  }
+  });
   return res;
 }
 
@@ -437,7 +448,7 @@ function renderDetail(res) {
       <p class="note">Alimenta a ${ws}.</p>`;
     return;
   }
-  const W = CAPAS[L - 1].W[j], b = CAPAS[L - 1].b[j];
+  const W = CAPAS[L - 1].W[j], b = state.b[L - 1][j];
   const prev = res[L - 1].a;
   const z = res[L].z[j], a = res[L].a[j];
   const zv = varZ(L, j), av = L === 3 ? "Y" : varA(L, j);
@@ -597,10 +608,54 @@ numbers.forEach((n, i) => n.addEventListener("input", () => {
   ranges[i].value = state.x[i];
   render();
 }));
+// Controles de sesgos: uno por neurona (b²₁ … b⁴₁)
+const biasGrid = document.getElementById("bias-grid");
+const biasCtl = [];
+CAPAS.forEach((capa, i) => {
+  const L = i + 1;
+  const titulo = document.createElement("div");
+  titulo.className = "bias-layer";
+  titulo.textContent = TITULOS[L];
+  biasGrid.appendChild(titulo);
+  capa.b.forEach((orig, j) => {
+    const etiqueta = `b${sup(L + 1)}${sub(j + 1)}`;
+    const box = document.createElement("div");
+    box.className = "slider";
+    box.innerHTML = `
+      <label for="b${i}${j}">${etiqueta} · ${nombre(L, j)}
+        <input type="number" step="0.01" min="-2" max="2" aria-label="Valor de ${etiqueta}"></label>
+      <input type="range" id="b${i}${j}" min="-2" max="2" step="0.01">
+      <span class="bias-orig"></span>`;
+    biasGrid.appendChild(box);
+    const range = box.querySelector('input[type="range"]');
+    const number = box.querySelector('input[type="number"]');
+    const origTxt = box.querySelector(".bias-orig");
+    const set = v => {
+      state.b[i][j] = v;
+      box.classList.toggle("changed", v !== orig);
+      origTxt.textContent = v !== orig ? `original: ${fmtW(orig)}` : "";
+    };
+    range.addEventListener("input", () => { set(parseFloat(range.value)); number.value = range.value; render(); });
+    number.addEventListener("input", () => {
+      const v = parseFloat(number.value);
+      if (!isFinite(v)) return;
+      set(Math.max(-2, Math.min(2, v)));
+      range.value = state.b[i][j];
+      render();
+    });
+    biasCtl.push({ i, j, range, number, set });
+  });
+});
+function syncBias() {
+  for (const c of biasCtl) { const v = state.b[c.i][c.j]; c.range.value = v; c.number.value = v; c.set(v); }
+}
+
 btnAnim.addEventListener("click", animate);
 document.getElementById("btn-reset").addEventListener("click", () => {
   state.x = ENTRADAS_PROYECTO.slice();
+  state.b = CAPAS.map(c => c.b.slice());
   syncInputs();
+  syncBias();
   render();
 });
 
@@ -614,6 +669,7 @@ function render() {
 }
 
 syncInputs();
+syncBias();
 render();
 </script>
 </body>
