@@ -40,6 +40,13 @@ python red_neuronal.py
 
 No requiere librerías externas (usa `math.tanh`).
 
+Para abrir la demo como aplicación de escritorio (ventana nativa con `pywebview`):
+
+```bash
+pip install -r requirements.txt
+python app.py
+```
+
 Para regenerar el código QR:
 
 ```bash

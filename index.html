@@ -213,9 +213,9 @@
 
       <section class="card">
         <h2>Resultados</h2>
-        <p class="sub">Calculados en vivo con las entradas actuales (6 decimales).</p>
+        <p class="sub">Valores intermedios y salidas ŷ₁, ŷ₂, calculados en vivo sin redondeo intermedio (se muestran 6 decimales).</p>
         <table>
-          <thead><tr><th>Neurona</th><th>z</th><th>a = tanh(z)</th></tr></thead>
+          <thead><tr><th>Neurona</th><th>z (suma ponderada)</th><th>a = tanh(z)</th></tr></thead>
           <tbody id="tbody"></tbody>
         </table>
       </section>
@@ -480,7 +480,7 @@ function renderChain(res) {
     parts.push(`<span class="arrow${d}"><span>f</span>→</span>`);
     parts.push(L === 3
       ? `<span class="chip final${d}"><b>Y</b> = ${fmt(res[3].a[0], 4)}</span>`
-      : `<span class="chip${d}"><b>a${sup(L + 1)}</b> = ${vec(res[L].a)}</span>`);
+      : `<span class="chip${d}"><b>a${sup(L + 1)}${L === 2 ? " = ŷ" : ""}</b> = ${vec(res[L].a)}</span>`);
   }
   chain.innerHTML = parts.join("");
 }
@@ -560,8 +560,11 @@ function renderTable(res) {
   const rows = [];
   for (let L = 1; L <= 3; L++) for (let j = 0; j < TAMANOS[L]; j++) {
     const isSel = state.sel.L === L && state.sel.j === j;
-    const etiqueta = L === 2 ? ` (ŷ${sub(j + 1)})` : L === 3 ? " (Y)" : "";
-    rows.push(`<tr data-l="${L}" data-j="${j}" class="${isSel ? "sel" : ""}"><td>${nombre(L, j)}${etiqueta}</td><td>${fmt(res[L].z[j])}</td><td>${L === 3 ? "<b>" + fmt(res[L].a[j]) + "</b>" : fmt(res[L].a[j])}</td></tr>`);
+    const salida = L === 2 ? ` = ŷ${sub(j + 1)}` : L === 3 ? " = Y" : "";
+    const a = fmt(res[L].a[j]);
+    rows.push(`<tr data-l="${L}" data-j="${j}" class="${isSel ? "sel" : ""}"><td>${nombre(L, j)}</td>` +
+      `<td>${varZ(L, j)} = ${fmt(res[L].z[j])}</td>` +
+      `<td>${varA(L, j)}${salida} = ${L >= 2 ? "<b>" + a + "</b>" : a}</td></tr>`);
   }
   tbody.innerHTML = rows.join("");
 }
